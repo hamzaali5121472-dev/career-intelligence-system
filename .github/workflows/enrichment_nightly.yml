@@ -1,0 +1,70 @@
+name: Nightly Enrichment + Drive Write
+
+on:
+  schedule:
+    # Midnight EST = 5:00 AM UTC (after all day's collection is done)
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  enrich-and-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/enriched data/logs
+
+      - name: Download today's raw data artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: data/raw/
+          pattern: '*-raw-*'
+          merge-multiple: true
+        continue-on-error: true  # OK if no artifacts yet
+
+      - name: Write Google service account credentials
+        env:
+          GOOGLE_CREDS_JSON: ${{ secrets.GOOGLE_CREDS_JSON }}
+        run: |
+          mkdir -p config
+          echo "$GOOGLE_CREDS_JSON" > config/google_service_account.json
+
+      - name: Run full pipeline (enrich + alerts + Drive write)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_FILE: config/google_service_account.json
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_APP_PASSWORD: ${{ secrets.ALERT_EMAIL_APP_PASSWORD }}
+          MIN_RELEVANCE_SCORE: '6'
+        run: python main.py --skip-reddit --skip-rss
+
+      - name: Upload enriched data
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: enriched-${{ github.run_id }}
+          path: data/enriched/
+          retention-days: 30
+
+      - name: Upload pipeline logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-logs-${{ github.run_id }}
+          path: data/logs/
+          retention-days: 7

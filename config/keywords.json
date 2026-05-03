@@ -1,0 +1,194 @@
+{
+  "themes": {
+    "ats_rejection": {
+      "seed": "ATS rejection",
+      "keywords": [
+        "ATS rejection", "applicant tracking system", "resume rejected", "never hear back",
+        "application black hole", "resume screened out", "keyword matching resume",
+        "ATS optimization", "resume not getting through", "automated rejection",
+        "resume parser", "rejected before human sees", "ATS friendly resume",
+        "100 applications no response", "ghost by system"
+      ]
+    },
+    "job_search_fatigue": {
+      "seed": "job search burnout",
+      "keywords": [
+        "job search exhausted", "job hunt burnout", "demoralized job search",
+        "applying for months", "hundreds of applications", "job search depression",
+        "giving up job search", "job search is soul crushing", "job search anxiety",
+        "how long to find job", "job search fatigue", "rejected so many times",
+        "job search mental health", "drained from applying", "job search hopeless"
+      ]
+    },
+    "interview_anxiety": {
+      "seed": "interview anxiety",
+      "keywords": [
+        "interview anxiety", "nervous for interview", "interview fear", "freeze in interview",
+        "interview preparation stress", "behavioral interview anxiety", "interview panic",
+        "how to calm down interview", "interview performance anxiety", "shake during interview",
+        "failed interview", "interview went badly", "blanked in interview",
+        "interview self sabotage", "technical interview stress"
+      ]
+    },
+    "salary_negotiation": {
+      "seed": "salary negotiation",
+      "keywords": [
+        "salary negotiation", "negotiate offer", "counter offer", "lowball offer",
+        "how to ask for more money", "salary too low", "underpaid", "salary range",
+        "offer below expectations", "negotiate salary Canada", "salary transparency",
+        "pay equity", "asking for raise", "compensation negotiation",
+        "worth more than paid", "market rate salary"
+      ]
+    },
+    "career_change": {
+      "seed": "career change",
+      "keywords": [
+        "career change", "career pivot", "switching industries", "career transition",
+        "new career at 30", "new career at 40", "leaving corporate", "career reinvention",
+        "how to change careers", "transferable skills", "career switch",
+        "leaving my field", "changing professions", "career pivot advice",
+        "second career", "career shift"
+      ]
+    },
+    "layoffs": {
+      "seed": "laid off",
+      "keywords": [
+        "laid off", "layoffs", "job loss", "got laid off", "terminated",
+        "downsizing", "restructuring", "workforce reduction", "mass layoff",
+        "lost my job", "company layoffs", "laid off Canada", "tech layoffs",
+        "severance package", "WARN notice", "what to do after layoff",
+        "layoff survival", "job search after layoff"
+      ]
+    },
+    "ai_replacing_jobs": {
+      "seed": "AI replacing jobs",
+      "keywords": [
+        "AI replacing jobs", "automation job loss", "AI taking my job",
+        "ChatGPT replace workers", "AI unemployment", "future of work AI",
+        "will AI take my job", "replaced by AI", "automation anxiety",
+        "AI job market impact", "skills AI can't replace", "AI proof career",
+        "AI disruption employment", "robots taking jobs", "human skills vs AI"
+      ]
+    },
+    "mental_health_burnout": {
+      "seed": "work burnout",
+      "keywords": [
+        "work burnout", "workplace stress", "mental health work",
+        "toxic workplace", "work life balance", "overworked", "job stress",
+        "career anxiety", "work depression", "unhappy at work",
+        "dreading work", "work making me sick", "quit for mental health",
+        "burnout symptoms", "emotional exhaustion work", "workplace trauma"
+      ]
+    },
+    "networking": {
+      "seed": "networking for jobs",
+      "keywords": [
+        "networking for jobs", "LinkedIn networking", "cold outreach",
+        "informational interview", "how to network", "networking anxiety",
+        "networking doesn't work", "building professional network",
+        "networking tips Canada", "reach out to hiring manager",
+        "network to get job", "LinkedIn cold message", "networking events GTA",
+        "professional connections", "referral job"
+      ]
+    },
+    "ghosting": {
+      "seed": "employer ghosting",
+      "keywords": [
+        "employer ghosting", "recruiter ghosted me", "no response after interview",
+        "ghosted after final round", "company ghosted", "no feedback after rejection",
+        "recruiter stopped responding", "went silent after interview",
+        "ghosted job application", "unprofessional recruiter", "job search ghosting",
+        "no follow up after interview", "disappeared after offer"
+      ]
+    },
+    "remote_vs_office": {
+      "seed": "return to office",
+      "keywords": [
+        "return to office", "RTO mandate", "remote work ending",
+        "back to office forced", "hybrid work policy", "work from home ending",
+        "remote job", "fully remote", "office politics",
+        "RTO resentment", "quit over RTO", "remote work Canada",
+        "remote jobs disappearing", "hybrid frustration", "WFH"
+      ]
+    },
+    "credential_recognition": {
+      "seed": "foreign credentials Canada",
+      "keywords": [
+        "foreign credentials Canada", "international degree recognized",
+        "credential recognition", "Canadian experience required",
+        "overqualified immigrant", "degree not recognized Canada",
+        "foreign trained professional", "newcomer job search",
+        "immigrant career challenges", "WES evaluation",
+        "professional designation Canada", "licensed in home country not Canada",
+        "skilled immigrant underemployed"
+      ]
+    },
+    "imposter_syndrome": {
+      "seed": "imposter syndrome",
+      "keywords": [
+        "imposter syndrome", "don't feel qualified", "fake it till you make it",
+        "not good enough", "will be found out", "don't deserve this job",
+        "scared to apply", "underqualify yourself", "self doubt career",
+        "confidence job search", "feel like a fraud", "not qualified enough",
+        "applying when overqualified", "fear of failure job"
+      ]
+    },
+    "overqualified_age_bias": {
+      "seed": "overqualified rejected",
+      "keywords": [
+        "overqualified rejected", "too experienced", "age discrimination hiring",
+        "ageism job search", "over 40 job search", "over 50 job search",
+        "senior worker unemployed", "experience working against me",
+        "won't hire because overqualified", "grey hair discrimination",
+        "age bias interview", "older worker job search Canada"
+      ]
+    },
+    "gta_canada_market": {
+      "seed": "GTA job market",
+      "keywords": [
+        "GTA job market", "Toronto job market", "Ontario employment",
+        "Canadian job market 2024", "hiring in Canada", "jobs in Toronto",
+        "Mississauga jobs", "Brampton jobs", "GTA hiring",
+        "Canada recession jobs", "Canadian economy jobs",
+        "IRCC work permit", "PGWP jobs", "PR job search Canada"
+      ]
+    },
+    "coaching_worth_it": {
+      "seed": "career coaching worth it",
+      "keywords": [
+        "career coaching worth it", "career coach results", "hire career coach",
+        "career coach cost", "is career coaching effective", "career coach review",
+        "career counselor vs coach", "paid for career coaching",
+        "career coach helped me", "career coach scam", "career advisor",
+        "resume coach", "job search coach", "career mentor"
+      ]
+    },
+    "employment_gap": {
+      "seed": "employment gap resume",
+      "keywords": [
+        "employment gap resume", "explaining gap in employment",
+        "gap year career", "out of work for a year",
+        "returning to workforce", "career break", "resume gap stigma",
+        "how to explain not working", "gap between jobs",
+        "maternity leave gap", "caregiver gap resume",
+        "laid off gap resume", "re-entering workforce"
+      ]
+    },
+    "workplace_culture": {
+      "seed": "toxic work culture",
+      "keywords": [
+        "toxic work culture", "bad manager", "micromanagement",
+        "hostile workplace", "workplace bullying", "quit toxic job",
+        "difficult coworkers", "dysfunctional workplace",
+        "management problems", "workplace conflict",
+        "company culture red flags", "culture fit interview",
+        "values mismatch work", "corporate culture problems"
+      ]
+    }
+  },
+  "global_career_keywords": [
+    "job search", "career", "resume", "interview", "hiring", "recruitment",
+    "job market", "employment", "unemployed", "job offer", "job application",
+    "career advice", "job hunting", "professional development", "career growth"
+  ]
+}

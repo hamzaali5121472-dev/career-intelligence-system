@@ -1,0 +1,35 @@
+# Career Intelligence System — Python Dependencies
+# Install: pip install -r requirements.txt
+
+# Reddit API
+praw==7.7.1
+
+# Google APIs
+google-auth==2.29.0
+google-auth-oauthlib==1.2.0
+google-api-python-client==2.126.0
+
+# Anthropic Claude API
+anthropic==0.28.0
+
+# RSS Feed Processing
+feedparser==6.0.11
+
+# Web Scraping (Phase 2)
+playwright==1.44.0
+beautifulsoup4==4.12.3
+lxml==5.2.1
+requests==2.32.3
+
+# Google Trends (Phase 2)
+pytrends==4.9.2
+
+# Data handling
+python-dotenv==1.0.1
+python-dateutil==2.9.0
+
+# Email notifications
+secure-smtplib==0.1.1
+
+# Utilities
+tenacity==8.3.0

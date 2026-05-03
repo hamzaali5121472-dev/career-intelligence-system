@@ -1,0 +1,20 @@
+# NEVER commit these — contains API keys
+.env
+config/google_service_account.json
+
+# Raw data — too large for git, stays local
+data/raw/
+data/enriched/
+data/logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db

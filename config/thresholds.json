@@ -1,0 +1,43 @@
+{
+  "collection_thresholds": {
+    "reddit": {
+      "min_upvotes": 50,
+      "min_comments": 20,
+      "min_upvotes_new_post": 10,
+      "max_post_age_hours": 72
+    },
+    "rss": {
+      "max_article_age_days": 7
+    },
+    "youtube": {
+      "min_video_views": 10000,
+      "min_comment_likes": 20
+    },
+    "linkedin": {
+      "min_reactions": 50,
+      "min_comments": 10
+    },
+    "tiktok": {
+      "min_views": 10000,
+      "min_likes": 500
+    }
+  },
+  "enrichment_thresholds": {
+    "min_relevance_score_to_store": 6,
+    "min_relevance_score_for_highlight": 8,
+    "max_enrichment_batch_size": 10,
+    "haiku_max_tokens_per_post": 512
+  },
+  "alert_thresholds": {
+    "layoff_min_employees_affected": 100,
+    "viral_post_min_upvotes": 5000,
+    "keyword_spike_multiplier": 3.0,
+    "source_failure_consecutive_runs": 2
+  },
+  "content_thresholds": {
+    "min_posts_for_weekly_brief": 20,
+    "min_posts_for_content_draft": 30,
+    "top_themes_to_highlight": 5,
+    "top_quotes_per_brief": 10
+  }
+}

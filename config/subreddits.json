@@ -1,0 +1,91 @@
+{
+  "subreddits": [
+    {
+      "name": "jobs",
+      "description": "General job search, applications, market conditions",
+      "priority": "high",
+      "collection_limit": 150,
+      "min_score": 50,
+      "min_comments": 10
+    },
+    {
+      "name": "careerguidance",
+      "description": "Career advice, pivots, coaching questions",
+      "priority": "high",
+      "collection_limit": 150,
+      "min_score": 30,
+      "min_comments": 5
+    },
+    {
+      "name": "cscareerquestions",
+      "description": "Tech career — layoffs, pivots, job market",
+      "priority": "high",
+      "collection_limit": 100,
+      "min_score": 50,
+      "min_comments": 10
+    },
+    {
+      "name": "canada",
+      "description": "Canadian market context, economy, employment",
+      "priority": "medium",
+      "collection_limit": 100,
+      "min_score": 100,
+      "min_comments": 20,
+      "keyword_filter_required": true
+    },
+    {
+      "name": "toronto",
+      "description": "GTA job market, local employer news",
+      "priority": "high",
+      "collection_limit": 100,
+      "min_score": 50,
+      "min_comments": 5,
+      "keyword_filter_required": true
+    },
+    {
+      "name": "recruitinghell",
+      "description": "Ghosting, ATS rejection, recruiter frustration — raw pain signals",
+      "priority": "high",
+      "collection_limit": 150,
+      "min_score": 30,
+      "min_comments": 5
+    },
+    {
+      "name": "layoffs",
+      "description": "Layoff announcements, survivor experiences, job search after layoff",
+      "priority": "high",
+      "collection_limit": 100,
+      "min_score": 20,
+      "min_comments": 5
+    },
+    {
+      "name": "careeradvice",
+      "description": "Broad career advice — resume, interviews, salary negotiation",
+      "priority": "medium",
+      "collection_limit": 100,
+      "min_score": 30,
+      "min_comments": 5
+    },
+    {
+      "name": "remotework",
+      "description": "Remote vs in-office debates, RTO mandates, hybrid",
+      "priority": "medium",
+      "collection_limit": 75,
+      "min_score": 50,
+      "min_comments": 10
+    },
+    {
+      "name": "AskHR",
+      "description": "HR perspective — hiring decisions, what recruiters think",
+      "priority": "medium",
+      "collection_limit": 75,
+      "min_score": 20,
+      "min_comments": 5
+    }
+  ],
+  "collection_modes": ["hot", "new"],
+  "hot_weight": 0.7,
+  "new_weight": 0.3,
+  "comment_depth": 2,
+  "top_comments_per_post": 5
+}

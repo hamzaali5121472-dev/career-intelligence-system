@@ -1,0 +1,101 @@
+{
+  "feeds": [
+    {
+      "name": "Harvard Business Review — Careers",
+      "url": "https://hbr.org/topic/subject/careers.rss",
+      "category": "thought_leadership",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Fast Company — Work Life",
+      "url": "https://www.fastcompany.com/work-life/rss",
+      "category": "trends",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Globe and Mail — Careers",
+      "url": "https://www.theglobeandmail.com/rss/topic/careers/",
+      "category": "canada_market",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "SHRM — All Articles",
+      "url": "https://www.shrm.org/rss/pages/rss.aspx",
+      "category": "hr_professional",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Forbes — Careers",
+      "url": "https://www.forbes.com/careers/feed/",
+      "category": "mainstream",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "LinkedIn Talent Blog",
+      "url": "https://www.linkedin.com/blog/talent-solutions/feed",
+      "category": "recruiter_perspective",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Indeed Hiring Lab",
+      "url": "https://www.hiringlab.org/feed/",
+      "category": "job_market_data",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Workopolis Blog",
+      "url": "https://careers.workopolis.com/advice/feed/",
+      "category": "canada_market",
+      "priority": "medium",
+      "fetch_full_text": true
+    },
+    {
+      "name": "MIT Sloan Management Review — Work",
+      "url": "https://sloanreview.mit.edu/topic/work-culture/feed/",
+      "category": "research",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Future Forum Blog",
+      "url": "https://futureforum.com/feed/",
+      "category": "future_of_work",
+      "priority": "medium",
+      "fetch_full_text": true
+    },
+    {
+      "name": "The Muse — Advice",
+      "url": "https://www.themuse.com/rss/advice",
+      "category": "job_seeker_advice",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Career Sidekick",
+      "url": "https://careersidekick.com/feed/",
+      "category": "job_seeker_advice",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Glassdoor Economic Research",
+      "url": "https://www.glassdoor.com/research/feed/",
+      "category": "job_market_data",
+      "priority": "high",
+      "fetch_full_text": true
+    }
+  ],
+  "fetch_settings": {
+    "request_timeout_seconds": 15,
+    "max_articles_per_feed": 20,
+    "max_article_age_days": 7,
+    "user_agent": "B2Have Career Intelligence RSS Reader/1.0"
+  }
+}

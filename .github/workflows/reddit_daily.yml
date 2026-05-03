@@ -1,0 +1,54 @@
+name: Reddit Daily Collection
+
+on:
+  schedule:
+    # 6:00 AM EST = 11:00 AM UTC (runs daily)
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    # Manual trigger available from GitHub Actions tab
+
+jobs:
+  collect-reddit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/enriched data/logs
+
+      - name: Run Reddit collector
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+        run: python -m collectors.reddit_collector
+
+      - name: Upload raw data artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reddit-raw-${{ github.run_id }}
+          path: data/raw/reddit_*.json
+          retention-days: 7
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-reddit-${{ github.run_id }}
+          path: data/logs/
+          retention-days: 3
