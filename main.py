@@ -162,6 +162,21 @@ def run_pipeline(args):
 
                     log.info(f"  ✓ Written to Google Drive")
                     log.info(f"  📄 Doc URL: {doc_url}")
+
+                    # ── EXCEL LOG ─────────────────────────────────────────────
+                    try:
+                        from outputs.excel_logger import append_to_excel
+                        excel_result = append_to_excel(
+                            enriched_items,
+                            run_date=day_label,
+                        )
+                        log.info(
+                            f"  ✓ Excel log updated: {excel_result['appended']} new rows, "
+                            f"{excel_result['skipped_duplicate']} duplicates skipped"
+                        )
+                        log.info(f"  📊 Log path: {excel_result['file_path']}")
+                    except Exception as e:
+                        log.error(f"  ✗ Excel log failed (non-critical): {e}")
                 else:
                     log.info("  ℹ No enriched items to write this run")
 

@@ -1,10 +1,12 @@
 """
 Document Formatter — B2Have Career Intelligence System
-Formats enriched items into a comprehensive daily research brief
-structured for NotebookLM deep querying and coach reference use.
+Formats enriched items into a structured daily research brief.
 
-Daily docs are created each day. On Sunday a weekly_rollup.py synthesizes
-all 7 daily docs into a "Weekly Narrative" using Claude Sonnet.
+format_daily_doc()  → returns list[{"text": str, "style": str}]
+                       Styles: HEADING_1 / HEADING_2 / HEADING_3 / NORMAL_TEXT
+                       Consumed by drive_writer.append_structured_content_to_doc()
+
+format_weekly_doc() → returns plain string (used by weekly_rollup.py for NotebookLM)
 
 NotebookLM can answer questions like:
   "What are the top career pain points today?"
@@ -18,31 +20,466 @@ from datetime import datetime
 from collections import Counter
 
 
-DIVIDER_HEAVY = "═" * 70
-DIVIDER_LIGHT = "─" * 60
-DIVIDER_DOT = "·" * 60
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _b(text, style="NORMAL_TEXT"):
+    """Shorthand block constructor."""
+    return {"text": str(text), "style": style}
+
+
+def _fmt_theme(theme):
+    return (theme or "general").replace("_", " ").title()
+
+
+def _fmt_seg(segment):
+    return (segment or "").replace("_", " ").title()
+
+
+# ── Daily Formatter (structured blocks) ───────────────────────────────────────
 
 def format_daily_doc(enriched_items, day_label, day_display):
     """
-    Format a single day's intelligence brief.
-    Wrapper that calls format_weekly_doc with daily labels.
+    Format a single day's intelligence brief as structured heading blocks.
+    Returns: list[{"text": str, "style": str}]
+
+    Styles map directly to Google Docs named paragraph styles:
+      HEADING_1 → H1 (large, bold)
+      HEADING_2 → H2 (article titles)
+      HEADING_3 → H3 (source/score metadata)
+      NORMAL_TEXT → body paragraph
     """
-    return format_weekly_doc(enriched_items, day_label, day_label, day_label,
-                             doc_type="daily", day_display=day_display)
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+    blocks = []
+
+    # Sort items by relevance score
+    items_by_score = sorted(enriched_items, key=lambda x: x.get("relevance_score", 0), reverse=True)
+    coaching_items = [i for i in items_by_score if i.get("coaching_flag")]
+    high_signal = [i for i in items_by_score if i.get("relevance_score", 0) >= 8]
+    mid_signal = [i for i in items_by_score if 6 <= i.get("relevance_score", 0) <= 7]
+    lower_signal = [i for i in items_by_score if i.get("relevance_score", 0) == 5]
+    canada_items = [i for i in items_by_score if
+                    i.get("enrichment", {}).get("canada_relevant") or
+                    i.get("subreddit") in ["canada", "toronto", "ontario", "torontoJobs"]]
+
+    # ── TITLE PAGE ─────────────────────────────────────────────────────────────
+    blocks.append(_b(f"Career Intelligence Brief — {day_display}", "HEADING_1"))
+    blocks.append(_b("B2Have Career Coaching | GTA / Toronto Market Intelligence", "NORMAL_TEXT"))
+    blocks.append(_b(f"Generated: {now_str}", "NORMAL_TEXT"))
+
+    # ── OVERVIEW ───────────────────────────────────────────────────────────────
+    blocks.append(_b("Overview", "HEADING_1"))
+    blocks.append(_b(
+        f"Total Signals Analysed: {len(enriched_items)}     |     "
+        f"High-Signal (8–10): {len(high_signal)}     |     "
+        f"Coaching Flags: {len(coaching_items)}     |     "
+        f"Canada-Specific: {len(canada_items)}",
+        "NORMAL_TEXT"
+    ))
+
+    # ── TOP THEMES ─────────────────────────────────────────────────────────────
+    theme_counts = Counter(item.get("theme", "unknown") for item in enriched_items)
+    top_themes = theme_counts.most_common(6)
+
+    blocks.append(_b("Top Career Themes This Run", "HEADING_1"))
+    for rank, (theme, count) in enumerate(top_themes, 1):
+        bar = "█" * min(count * 2, 30)
+        blocks.append(_b(f"{rank}. {_fmt_theme(theme)} — {count} signals  {bar}", "NORMAL_TEXT"))
+
+    if top_themes:
+        top_theme = _fmt_theme(top_themes[0][0])
+        top_count = top_themes[0][1]
+        blocks.append(_b(
+            f"Dominant narrative: {top_theme} with {top_count} signals. "
+            f"Strong coaching opportunity — professionals across career stages are actively grappling with this theme.",
+            "NORMAL_TEXT"
+        ))
+
+    # ── KEY SIGNALS AT A GLANCE ────────────────────────────────────────────────
+    blocks.append(_b("Key Signals at a Glance (Top 5)", "HEADING_2"))
+    for item in items_by_score[:5]:
+        title = item.get("title", "")[:100]
+        score = item.get("relevance_score", 0)
+        segment = _fmt_seg(item.get("audience_segment"))
+        blocks.append(_b(f"[{score}/10]  [{segment}]  {title}", "NORMAL_TEXT"))
+
+    # ── HIGH-SIGNAL STORIES (8+) ───────────────────────────────────────────────
+    if high_signal:
+        blocks.append(_b(f"High-Signal Stories — Score 8 to 10  ({len(high_signal)} items)", "HEADING_1"))
+        blocks.append(_b(
+            "Full analysis: summary, power quote, coaching questions, LinkedIn hooks, statistics, and client phrases.",
+            "NORMAL_TEXT"
+        ))
+        for idx, item in enumerate(high_signal, 1):
+            blocks.extend(_item_blocks_full(item, idx))
+
+    # ── MID-SIGNAL STORIES (6-7) ───────────────────────────────────────────────
+    if mid_signal:
+        blocks.append(_b(f"Standard Stories — Score 6 to 7  ({len(mid_signal)} items)", "HEADING_1"))
+        blocks.append(_b("Summary, power quote, coaching questions, and LinkedIn hooks.", "NORMAL_TEXT"))
+        for idx, item in enumerate(mid_signal, 1):
+            blocks.extend(_item_blocks_standard(item, idx))
+
+    # ── LOWER SIGNAL STORIES (5) ───────────────────────────────────────────────
+    if lower_signal:
+        blocks.append(_b(f"Brief Signals — Score 5  ({len(lower_signal)} items)", "HEADING_1"))
+        for idx, item in enumerate(lower_signal, 1):
+            blocks.extend(_item_blocks_brief(item, idx))
+
+    # ── COACHING PLAYBOOK ──────────────────────────────────────────────────────
+    if coaching_items:
+        blocks.append(_b(f"Coaching Playbook — {len(coaching_items)} Flagged Opportunities", "HEADING_1"))
+        blocks.append(_b(
+            "Items flagged by AI as having direct coaching application for your client base.",
+            "NORMAL_TEXT"
+        ))
+        for item in coaching_items:
+            blocks.extend(_coaching_blocks(item))
+
+    # ── CANADA / GTA SIGNALS ───────────────────────────────────────────────────
+    blocks.append(_b(f"Canada / GTA Market Signals — {len(canada_items)} items", "HEADING_1"))
+    if canada_items:
+        for item in canada_items:
+            title = item.get("title", "")
+            source = item.get("feed_name") or item.get("subreddit", "")
+            score = item.get("relevance_score", 0)
+            canada_ctx = item.get("canada_context") or item.get("enrichment", {}).get("canada_context", "")
+            summary = item.get("enrichment", {}).get("summary", "")
+            url = item.get("url", "")
+            blocks.append(_b(f"[{score}/10]  {title}", "HEADING_3"))
+            blocks.append(_b(f"Source: {source}  |  {url}", "NORMAL_TEXT"))
+            if canada_ctx:
+                blocks.append(_b(f"GTA Context: {canada_ctx}", "NORMAL_TEXT"))
+            if summary:
+                blocks.append(_b(f"Summary: {summary}", "NORMAL_TEXT"))
+    else:
+        blocks.append(_b(
+            "No Canada-specific signals this run. "
+            "Canadian HR Reporter, CBC Business, Benefits Canada, and Talent Canada feeds are active.",
+            "NORMAL_TEXT"
+        ))
+
+    # ── CONTENT CALENDAR ───────────────────────────────────────────────────────
+    all_hooks = []
+    all_angles = []
+    for item in items_by_score:
+        theme = _fmt_theme(item.get("theme"))
+        score = item.get("relevance_score", 0)
+        for hook in item.get("linkedin_hooks", []):
+            if hook:
+                all_hooks.append((hook, theme, score))
+        for angle in item.get("content_angles", []):
+            if angle:
+                all_angles.append((angle, theme, score))
+
+    all_hooks.sort(key=lambda x: x[2], reverse=True)
+    all_angles.sort(key=lambda x: x[2], reverse=True)
+
+    blocks.append(_b("Content Calendar — LinkedIn Hooks & Content Angles", "HEADING_1"))
+    if all_hooks:
+        blocks.append(_b("LinkedIn Hooks (sorted by relevance)", "HEADING_2"))
+        for hook, theme, score in all_hooks[:20]:
+            blocks.append(_b(f"[{theme}]  {hook}", "NORMAL_TEXT"))
+
+    if all_angles:
+        blocks.append(_b("Content Angles — Blog Posts, Videos, Workshops", "HEADING_2"))
+        for angle, theme, score in all_angles[:15]:
+            blocks.append(_b(f"[{theme}]  {angle}", "NORMAL_TEXT"))
+
+    # ── STATISTICS BANK ────────────────────────────────────────────────────────
+    all_stats = []
+    for item in items_by_score:
+        source_name = item.get("feed_name") or item.get("subreddit") or "Unknown"
+        for stat in item.get("key_statistics", []):
+            if stat and len(stat) > 5:
+                all_stats.append((stat, source_name))
+
+    if all_stats:
+        blocks.append(_b(f"Statistics & Data Bank — {len(all_stats)} facts extracted", "HEADING_1"))
+        blocks.append(_b(
+            "Key numbers from all sources. Ask NotebookLM: "
+            "\"What are the key statistics about burnout this week?\"",
+            "NORMAL_TEXT"
+        ))
+        for stat, source in all_stats:
+            blocks.append(_b(f"• {stat}  ↳ {source}", "NORMAL_TEXT"))
+
+    # ── POWER QUOTES ───────────────────────────────────────────────────────────
+    all_power_quotes = [
+        (item.get("power_quote"), item.get("theme"), item.get("feed_name") or item.get("subreddit"),
+         item.get("relevance_score", 0), item.get("audience_segment"))
+        for item in items_by_score
+        if item.get("power_quote") and item.get("relevance_score", 0) >= 6
+    ]
+    if all_power_quotes:
+        blocks.append(_b("Real Voices — Power Quotes", "HEADING_1"))
+        blocks.append(_b(
+            "Emotionally resonant quotes for content, coaching empathy, and intake language.",
+            "NORMAL_TEXT"
+        ))
+        for quote, theme, source, score, segment in all_power_quotes:
+            seg_display = _fmt_seg(segment)
+            theme_display = _fmt_theme(theme)
+            blocks.append(_b(f'"{quote}"', "NORMAL_TEXT"))
+            blocks.append(_b(
+                f"Theme: {theme_display}  |  Segment: {seg_display}  |  Source: {source}  |  Relevance: {score}/10",
+                "NORMAL_TEXT"
+            ))
+
+    # ── AUDIENCE SEGMENT BREAKDOWN ─────────────────────────────────────────────
+    segments = Counter(item.get("audience_segment", "unknown") for item in enriched_items)
+    blocks.append(_b("Signals by Audience Segment", "HEADING_1"))
+    for segment, count in segments.most_common():
+        seg_display = _fmt_seg(segment)
+        seg_items = sorted(
+            [i for i in enriched_items if i.get("audience_segment") == segment],
+            key=lambda x: x.get("relevance_score", 0), reverse=True
+        )
+        blocks.append(_b(f"{seg_display} — {count} signals", "HEADING_2"))
+        for item in seg_items[:4]:
+            title = item.get("title", "")[:90]
+            score = item.get("relevance_score", 0)
+            theme = _fmt_theme(item.get("theme"))
+            blocks.append(_b(f"[{score}/10]  [{theme}]  {title}", "NORMAL_TEXT"))
+
+    # ── SOURCE INDEX ───────────────────────────────────────────────────────────
+    blocks.append(_b("Complete Source Index", "HEADING_1"))
+    blocks.append(_b(
+        "Every signal with full metadata for deep NotebookLM search.",
+        "NORMAL_TEXT"
+    ))
+    for item in items_by_score:
+        title = item.get("title", "")
+        theme = _fmt_theme(item.get("theme"))
+        score = item.get("relevance_score", 0)
+        source = item.get("feed_name") or (f"r/{item.get('subreddit')}" if item.get("subreddit") else "Unknown")
+        segment = _fmt_seg(item.get("audience_segment"))
+        url = item.get("url", "")
+        coaching = " [COACHING FLAG]" if item.get("coaching_flag") else ""
+        canada = " [CANADA]" if item.get("enrichment", {}).get("canada_relevant") else ""
+        blocks.append(_b(f"[{score}/10]  [{theme}]  [{segment}]{coaching}{canada}  |  {source}", "NORMAL_TEXT"))
+        blocks.append(_b(f"{title}  |  {url}", "NORMAL_TEXT"))
+
+    # ── FOOTER ─────────────────────────────────────────────────────────────────
+    blocks.append(_b(f"End of Brief — {day_display}  |  B2Have Career Intelligence  |  {now_str}", "HEADING_3"))
+
+    return blocks
+
+
+# ── Item Block Formatters ─────────────────────────────────────────────────────
+
+def _item_blocks_full(item, idx):
+    """Return full-detail blocks for a score 8+ item."""
+    blocks = []
+    title = item.get("title", "Untitled")
+    subreddit = item.get("subreddit", "")
+    feed_name = item.get("feed_name", "")
+    source_display = f"r/{subreddit}" if subreddit else feed_name
+    score = item.get("relevance_score", 0)
+    theme = _fmt_theme(item.get("theme"))
+    segment = _fmt_seg(item.get("audience_segment"))
+    url = item.get("url", "")
+    coaching_flag = item.get("coaching_flag", False)
+
+    enrichment = item.get("enrichment", {})
+    summary = enrichment.get("summary", "")
+    sentiment = enrichment.get("sentiment", "")
+    urgency = enrichment.get("urgency", "")
+    coaching_reason = enrichment.get("coaching_reason", "")
+    canada_ctx = item.get("canada_context") or enrichment.get("canada_context", "")
+    power_quote = item.get("power_quote", "")
+    key_stats = item.get("key_statistics", [])
+    client_phrases = item.get("what_clients_say", [])
+    coaching_qs = item.get("coaching_questions", [])
+    linkedin_hooks = item.get("linkedin_hooks", [])
+    content_angles = item.get("content_angles", [])
+
+    urgency_tag = "  ⚠ HIGH URGENCY" if urgency == "high" else ""
+    coaching_tag = "  🎯 COACHING FLAG" if coaching_flag else ""
+
+    blocks.append(_b(title, "HEADING_2"))
+    blocks.append(_b(
+        f"Source: {source_display}  |  Score: {score}/10  |  Theme: {theme}  |  Segment: {segment}"
+        f"{urgency_tag}{coaching_tag}",
+        "HEADING_3"
+    ))
+    blocks.append(_b(
+        f"Sentiment: {sentiment.title() if sentiment else 'N/A'}  |  "
+        f"Urgency: {urgency.title() if urgency else 'N/A'}  |  {url}",
+        "NORMAL_TEXT"
+    ))
+
+    if summary:
+        blocks.append(_b(f"Summary: {summary}", "NORMAL_TEXT"))
+
+    if power_quote:
+        blocks.append(_b(f'Power Quote: "{power_quote}"', "NORMAL_TEXT"))
+
+    if key_stats:
+        blocks.append(_b("Key Statistics:", "NORMAL_TEXT"))
+        for stat in key_stats:
+            blocks.append(_b(f"  • {stat}", "NORMAL_TEXT"))
+
+    if coaching_flag and coaching_reason:
+        blocks.append(_b(f"Coaching Opportunity: {coaching_reason}", "NORMAL_TEXT"))
+
+    if coaching_qs:
+        blocks.append(_b("Coaching Questions:", "NORMAL_TEXT"))
+        for q in coaching_qs:
+            blocks.append(_b(f"  Q: {q}", "NORMAL_TEXT"))
+
+    if linkedin_hooks:
+        blocks.append(_b("LinkedIn Hooks:", "NORMAL_TEXT"))
+        for hook in linkedin_hooks:
+            blocks.append(_b(f"  → {hook}", "NORMAL_TEXT"))
+
+    if canada_ctx:
+        blocks.append(_b(f"GTA / Canada Relevance: {canada_ctx}", "NORMAL_TEXT"))
+
+    if client_phrases:
+        blocks.append(_b("What Clients Say (intake language):", "NORMAL_TEXT"))
+        for phrase in client_phrases:
+            blocks.append(_b(f'  • "{phrase}"', "NORMAL_TEXT"))
+
+    if content_angles:
+        blocks.append(_b("Content Angles:", "NORMAL_TEXT"))
+        for angle in content_angles:
+            blocks.append(_b(f"  → {angle}", "NORMAL_TEXT"))
+
+    # Article body excerpt (score 8+ only)
+    body = item.get("body", "")
+    if body and len(body) > 100:
+        blocks.append(_b(f"Post Text (excerpt): {body[:400]}", "NORMAL_TEXT"))
+
+    full_text = item.get("full_text", "")
+    if full_text and len(full_text) > 100:
+        blocks.append(_b(f"Article Body (excerpt): {full_text[:400]}", "NORMAL_TEXT"))
+
+    # Top comments
+    top_comments = item.get("top_comments", [])
+    if top_comments:
+        blocks.append(_b("Top Community Responses:", "NORMAL_TEXT"))
+        for i, c in enumerate(top_comments[:5]):
+            upvotes = c.get("score", 0)
+            body_text = c.get("body", "")[:280]
+            blocks.append(_b(f"  Comment {i+1} ({upvotes} upvotes): {body_text}", "NORMAL_TEXT"))
+
+    return blocks
+
+
+
+def _item_blocks_standard(item, idx):
+    """Return standard-detail blocks for a score 6-7 item."""
+    blocks = []
+    title = item.get("title", "Untitled")
+    subreddit = item.get("subreddit", "")
+    feed_name = item.get("feed_name", "")
+    source_display = f"r/{subreddit}" if subreddit else feed_name
+    score = item.get("relevance_score", 0)
+    theme = _fmt_theme(item.get("theme"))
+    segment = _fmt_seg(item.get("audience_segment"))
+    url = item.get("url", "")
+    coaching_flag = item.get("coaching_flag", False)
+    coaching_tag = "  🎯" if coaching_flag else ""
+
+    enrichment = item.get("enrichment", {})
+    summary = enrichment.get("summary", "")
+    sentiment = enrichment.get("sentiment", "")
+    urgency = enrichment.get("urgency", "")
+    coaching_reason = enrichment.get("coaching_reason", "")
+    power_quote = item.get("power_quote", "")
+    coaching_qs = item.get("coaching_questions", [])
+    linkedin_hooks = item.get("linkedin_hooks", [])
+
+    blocks.append(_b(title, "HEADING_2"))
+    blocks.append(_b(
+        f"Source: {source_display}  |  Score: {score}/10  |  Theme: {theme}  |  "
+        f"Sentiment: {sentiment or 'N/A'}  |  Urgency: {urgency or 'N/A'}{coaching_tag}",
+        "HEADING_3"
+    ))
+    blocks.append(_b(url, "NORMAL_TEXT"))
+
+    if summary:
+        blocks.append(_b(f"Summary: {summary}", "NORMAL_TEXT"))
+    if power_quote:
+        blocks.append(_b(f'Power Quote: "{power_quote}"', "NORMAL_TEXT"))
+    if coaching_flag and coaching_reason:
+        blocks.append(_b(f"Coaching Opportunity: {coaching_reason}", "NORMAL_TEXT"))
+    if coaching_qs:
+        qs_text = "  |  ".join(f"Q: {q}" for q in coaching_qs[:3])
+        blocks.append(_b(qs_text, "NORMAL_TEXT"))
+    if linkedin_hooks:
+        blocks.append(_b("Hooks: " + "  //  ".join(linkedin_hooks[:3]), "NORMAL_TEXT"))
+
+    top_comments = item.get("top_comments", [])
+    for c in top_comments[:3]:
+        body_text = c.get("body", "")[:200]
+        upvotes = c.get("score", 0)
+        blocks.append(_b(f"  Community ({upvotes} upvotes): {body_text}", "NORMAL_TEXT"))
+
+    return blocks
+
+
+def _item_blocks_brief(item, idx):
+    """Return brief entry for a score 5 item (index entry only)."""
+    blocks = []
+    title = item.get("title", "Untitled")
+    subreddit = item.get("subreddit", "")
+    feed_name = item.get("feed_name", "")
+    source_display = f"r/{subreddit}" if subreddit else feed_name
+    score = item.get("relevance_score", 0)
+    theme = _fmt_theme(item.get("theme"))
+    url = item.get("url", "")
+    summary = item.get("enrichment", {}).get("summary", "")
+
+    blocks.append(_b(f"[{score}/10]  [{theme}]  {title}", "HEADING_3"))
+    blocks.append(_b(f"Source: {source_display}  |  {url}", "NORMAL_TEXT"))
+    if summary:
+        first_sentence = summary.split(". ")[0] + "."
+        blocks.append(_b(first_sentence, "NORMAL_TEXT"))
+    return blocks
+
+
+def _coaching_blocks(item):
+    """Return coaching playbook blocks for a coaching-flagged item."""
+    blocks = []
+    title = item.get("title", "")
+    segment = _fmt_seg(item.get("audience_segment"))
+    theme = _fmt_theme(item.get("theme"))
+    coaching_reason = item.get("enrichment", {}).get("coaching_reason", "")
+    urgency = item.get("enrichment", {}).get("urgency", "")
+    coaching_qs = item.get("coaching_questions", [])
+    url = item.get("url", "")
+
+    urgency_tag = "  ⚠ HIGH URGENCY" if urgency == "high" else ""
+    blocks.append(_b(f"{segment} -- {theme}{urgency_tag}", "HEADING_2"))
+    blocks.append(_b(f"Signal: {title}", "NORMAL_TEXT"))
+    if coaching_reason:
+        blocks.append(_b(f"Why coaching helps: {coaching_reason}", "NORMAL_TEXT"))
+    if coaching_qs:
+        blocks.append(_b("Coaching Questions to Ask:", "HEADING_3"))
+        for q in coaching_qs:
+            blocks.append(_b(f"  Q: {q}", "NORMAL_TEXT"))
+    blocks.append(_b(f"Source: {url}", "NORMAL_TEXT"))
+    return blocks
+
+
+# ── Weekly Formatter (plain string for NotebookLM / weekly_rollup.py) ─────────
+
+DIVIDER_HEAVY = "=" * 70
+DIVIDER_LIGHT = "-" * 60
 
 
 def format_weekly_doc(enriched_items, week_label, week_start, week_end,
                       doc_type="daily", day_display=None):
     """
-    Format a full weekly intelligence document.
-    Returns a multi-section string ready for Google Docs / NotebookLM.
+    Format a full weekly intelligence document as a plain string.
+    Used by weekly_rollup.py -- NotebookLM ingests this directly.
+    Returns a multi-section string.
     """
     sections = []
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
     display = day_display or week_label
 
-    # Sort items by relevance score throughout
     items_by_score = sorted(enriched_items, key=lambda x: x.get("relevance_score", 0), reverse=True)
     coaching_items = [i for i in items_by_score if i.get("coaching_flag")]
     high_signal = [i for i in items_by_score if i.get("relevance_score", 0) >= 8]
@@ -50,329 +487,109 @@ def format_weekly_doc(enriched_items, week_label, week_start, week_end,
                     i.get("enrichment", {}).get("canada_relevant") or
                     i.get("subreddit") in ["canada", "toronto", "ontario", "torontoJobs"]]
 
-    # ── COVER PAGE ───────────────────────────────────────────────────────────
-    sections.append(f"""{DIVIDER_HEAVY}
-CAREER INTELLIGENCE BRIEF — {display}
-B2Have Career Coaching | GTA / Toronto Market Intelligence
-{DIVIDER_HEAVY}
+    sections.append(
+        f"{DIVIDER_HEAVY}\n"
+        f"CAREER INTELLIGENCE BRIEF -- {display}\n"
+        f"B2Have Career Coaching | GTA / Toronto Market Intelligence\n"
+        f"{DIVIDER_HEAVY}\n\n"
+        f"Date: {week_label}\n"
+        f"Generated: {now_str}\n"
+        f"Total Signals Analyzed: {len(enriched_items)}\n"
+        f"High-Signal Items (8-10): {len(high_signal)}\n"
+        f"Coaching Opportunity Flags: {len(coaching_items)}\n"
+        f"Canada-Specific Signals: {len(canada_items)}\n"
+    )
 
-Date: {week_label}
-Generated: {now_str}
-Total Signals Analyzed: {len(enriched_items)}
-High-Signal Items (8-10): {len(high_signal)}
-Coaching Opportunity Flags: {len(coaching_items)}
-Canada-Specific Signals: {len(canada_items)}
-
-PURPOSE: This daily brief is designed for NotebookLM deep-search and coach reference.
-Each day produces one file. On Sunday, weekly_rollup.py synthesizes all 7 into a
-Weekly Narrative. Ask NotebookLM: "What are clients saying about AI this week?",
-"Give me LinkedIn hooks about burnout", or "What coaching questions should I
-ask a mid-career professional who hates their job?"
-""")
-
-    # ── SECTION 1: EXECUTIVE SUMMARY ─────────────────────────────────────────
     theme_counts = Counter(item.get("theme", "unknown") for item in enriched_items)
     top_themes = theme_counts.most_common(6)
-
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 1: EXECUTIVE SUMMARY — WHAT'S HAPPENING THIS WEEK
-{DIVIDER_HEAVY}
-
-TOP CAREER THEMES (by signal volume):
-""")
+    sections.append(f"\n{DIVIDER_HEAVY}\nSECTION 1: EXECUTIVE SUMMARY\n{DIVIDER_HEAVY}\n\nTOP THEMES:\n")
     for rank, (theme, count) in enumerate(top_themes, 1):
-        theme_display = theme.replace("_", " ").title()
-        bar = "█" * min(count * 2, 30)
-        sections.append(f"  {rank}. {theme_display:<35} {bar} ({count} signals)")
+        bar = "X" * min(count * 2, 30)
+        sections.append(f"  {rank}. {_fmt_theme(theme):<35} {bar} ({count} signals)")
 
-    # Dominant narrative
-    if top_themes:
-        top_theme = top_themes[0][0].replace("_", " ").title()
-        top_count = top_themes[0][1]
-        sections.append(f"""
-DOMINANT NARRATIVE THIS WEEK:
-The most discussed topic is {top_theme} with {top_count} signals.
-This represents a strong coaching opportunity — professionals across career
-stages are actively grappling with this theme and seeking guidance.
-
-KEY SIGNALS AT A GLANCE:""")
-        for item in items_by_score[:5]:
-            title = item.get("title", "")[:90]
-            score = item.get("relevance_score", 0)
-            segment = (item.get("audience_segment") or "").replace("_", " ").title()
-            sections.append(f"  [{score}/10] [{segment}] {title}")
-
-    # ── SECTION 2: FULL SIGNAL ANALYSIS ──────────────────────────────────────
-    sections.append(f"""
-
-{DIVIDER_HEAVY}
-SECTION 2: FULL SIGNAL ANALYSIS — EVERY ITEM IN DEPTH
-{DIVIDER_HEAVY}
-(Use this section to find detailed analysis, quotes, coaching questions,
-and content ideas for each article/post collected this week)
-""")
-
+    sections.append(f"\n\n{DIVIDER_HEAVY}\nSECTION 2: FULL SIGNAL ANALYSIS\n{DIVIDER_HEAVY}\n")
     for idx, item in enumerate(items_by_score, 1):
         sections.append(format_single_item_full(item, idx))
         sections.append("")
 
-    # ── SECTION 3: STATISTICS & DATA BANK ────────────────────────────────────
     all_stats = []
     for item in items_by_score:
-        stats = item.get("key_statistics", [])
         source_name = item.get("feed_name") or item.get("subreddit") or "Unknown"
         title_short = item.get("title", "")[:60]
-        for stat in stats:
+        for stat in item.get("key_statistics", []):
             if stat and len(stat) > 5:
                 all_stats.append((stat, source_name, title_short))
 
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 3: STATISTICS & DATA BANK
-{DIVIDER_HEAVY}
-(Key numbers and statistics extracted from all sources this week.
-Ask NotebookLM: "What are the key statistics about burnout this week?")
+    sections.append(f"\n{DIVIDER_HEAVY}\nSECTION 3: STATISTICS & DATA BANK\n{DIVIDER_HEAVY}\n")
+    for stat, source, title in all_stats:
+        sections.append(f"  - {stat}")
+        sections.append(f"    Source: {source} | {title}")
+        sections.append("")
 
-Total statistics extracted: {len(all_stats)}
-""")
-    if all_stats:
-        for stat, source, title in all_stats:
-            sections.append(f"  • {stat}")
-            sections.append(f"    ↳ Source: {source} | {title}")
-            sections.append("")
-    else:
-        sections.append("  No statistics extracted this week. Run with more data sources for richer analysis.")
-
-    # ── SECTION 4: REAL VOICES — WHAT PEOPLE ARE SAYING ──────────────────────
     all_power_quotes = [
-        (item.get("power_quote"), item.get("theme"), item.get("feed_name") or item.get("subreddit"),
+        (item.get("power_quote"), item.get("theme"),
+         item.get("feed_name") or item.get("subreddit"),
          item.get("relevance_score", 0), item.get("audience_segment"))
         for item in items_by_score
         if item.get("power_quote") and item.get("relevance_score", 0) >= 6
     ]
-
-    all_client_phrases = []
-    for item in items_by_score:
-        phrases = item.get("what_clients_say", [])
-        for phrase in phrases:
-            if phrase:
-                all_client_phrases.append((phrase, item.get("theme"), item.get("title", "")[:60]))
-
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 4: REAL VOICES — WHAT PEOPLE ARE SAYING
-{DIVIDER_HEAVY}
-(Exact language from real people — use for content writing, intake forms,
-social media posts. Ask NLM: "What language do frustrated job seekers use?")
-
-4A. POWER QUOTES (from articles — emotionally resonant moments)
-{DIVIDER_LIGHT}
-""")
+    sections.append(f"\n{DIVIDER_HEAVY}\nSECTION 4: REAL VOICES\n{DIVIDER_HEAVY}\n")
     for quote, theme, source, score, segment in all_power_quotes:
-        theme_display = (theme or "career").replace("_", " ").title()
-        seg_display = (segment or "").replace("_", " ").title()
         sections.append(f'"{quote}"')
-        sections.append(f"  → Theme: {theme_display} | Segment: {seg_display} | Source: {source} | Relevance: {score}/10")
+        sections.append(f"  -> {_fmt_theme(theme)} | {_fmt_seg(segment)} | {source} | {score}/10")
         sections.append("")
 
-    sections.append(f"""
-4B. CLIENT INTAKE LANGUAGE (phrases clients use — directly from AI analysis)
-{DIVIDER_LIGHT}
-(These are the exact phrases your clients are likely to say when they walk in.
-Use for intake forms, consultation prompts, and empathy in outreach.)
-""")
-    if all_client_phrases:
-        # Group by theme
-        by_theme = {}
-        for phrase, theme, title in all_client_phrases:
-            key = (theme or "general").replace("_", " ").title()
-            by_theme.setdefault(key, []).append((phrase, title))
-
-        for theme_name, phrases in sorted(by_theme.items()):
-            sections.append(f"  [{theme_name}]")
-            for phrase, title in phrases:
-                sections.append(f'  • "{phrase}"')
-            sections.append("")
-    else:
-        sections.append("  (Will populate when more data is collected)")
-
-    # ── SECTION 5: COACHING PLAYBOOK ─────────────────────────────────────────
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 5: COACHING PLAYBOOK — QUESTIONS & OPPORTUNITIES
-{DIVIDER_HEAVY}
-(Use this section to prepare for client sessions.
-Ask NLM: "What coaching questions should I ask someone afraid of AI?")
-
-Total coaching opportunity flags this week: {len(coaching_items)}
-""")
-
+    sections.append(f"\n{DIVIDER_HEAVY}\nSECTION 5: COACHING PLAYBOOK\n{DIVIDER_HEAVY}\n")
     for item in coaching_items:
         title = item.get("title", "")
-        segment = (item.get("audience_segment") or "").replace("_", " ").title()
-        theme = (item.get("theme") or "").replace("_", " ").title()
+        segment = _fmt_seg(item.get("audience_segment"))
+        theme = _fmt_theme(item.get("theme"))
         coaching_reason = item.get("enrichment", {}).get("coaching_reason", "")
-        urgency = item.get("enrichment", {}).get("urgency", "")
         coaching_qs = item.get("coaching_questions", [])
         url = item.get("url", "")
-
-        urgency_tag = " ⚠ HIGH URGENCY" if urgency == "high" else ""
-        sections.append(f"{'─' * 50}")
-        sections.append(f"[{segment}] — {theme}{urgency_tag}")
+        sections.append("-" * 50)
+        sections.append(f"[{segment}] -- {theme}")
         sections.append(f"Signal: {title}")
         if coaching_reason:
             sections.append(f"Why coaching helps: {coaching_reason}")
-        if coaching_qs:
-            sections.append("Coaching questions to ask:")
-            for q in coaching_qs:
-                sections.append(f"  Q: {q}")
+        for q in coaching_qs:
+            sections.append(f"  Q: {q}")
         sections.append(f"Source: {url}")
         sections.append("")
 
-    # ── SECTION 6: CONTENT CALENDAR ──────────────────────────────────────────
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 6: CONTENT CALENDAR — LINKEDIN HOOKS & IDEAS
-{DIVIDER_HEAVY}
-(Ready-to-use content ideas based on this week's signals.
-Ask NLM: "Give me 5 LinkedIn post ideas for this week")
-
-6A. LINKEDIN HOOKS (opening lines — sorted by relevance)
-{DIVIDER_LIGHT}
-""")
-    all_hooks = []
-    for item in items_by_score:
-        hooks = item.get("linkedin_hooks", [])
-        score = item.get("relevance_score", 0)
-        theme = (item.get("theme") or "").replace("_", " ").title()
-        for hook in hooks:
-            if hook:
-                all_hooks.append((hook, theme, score))
-
-    all_hooks.sort(key=lambda x: x[2], reverse=True)
-    for hook, theme, score in all_hooks:
-        sections.append(f"  [{theme}] {hook}")
-        sections.append("")
-
-    sections.append(f"""
-6B. CONTENT ANGLES (blog posts, videos, workshops)
-{DIVIDER_LIGHT}
-""")
-    all_angles = []
-    for item in items_by_score:
-        angles = item.get("content_angles", [])
-        theme = (item.get("theme") or "").replace("_", " ").title()
-        score = item.get("relevance_score", 0)
-        for angle in angles:
-            if angle:
-                all_angles.append((angle, theme, score))
-
-    all_angles.sort(key=lambda x: x[2], reverse=True)
-    for angle, theme, score in all_angles[:20]:
-        sections.append(f"  [{theme}] {angle}")
-        sections.append("")
-
-    # ── SECTION 7: CANADA / GTA SIGNALS ─────────────────────────────────────
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 7: CANADA / GTA MARKET SIGNALS
-{DIVIDER_HEAVY}
-(Signals specifically relevant to the Ontario/GTA market.
-Ask NLM: "What's happening in the GTA job market this week?")
-
-Canada-specific signals found: {len(canada_items)}
-""")
-    if canada_items:
-        for item in canada_items:
-            title = item.get("title", "")
-            source = item.get("feed_name") or item.get("subreddit", "")
-            score = item.get("relevance_score", 0)
-            canada_ctx = item.get("canada_context", "")
-            summary = item.get("enrichment", {}).get("summary", "")
-            url = item.get("url", "")
-            sections.append(f"▸ [{score}/10] {title}")
-            sections.append(f"  Source: {source}")
-            if canada_ctx:
-                sections.append(f"  GTA Context: {canada_ctx}")
-            if summary:
-                sections.append(f"  Summary: {summary}")
-            sections.append(f"  URL: {url}")
-            sections.append("")
-    else:
-        sections.append("  No Canada-specific signals this week. Consider adding Canadian HR Reporter,\n"
-                        "  Globe and Mail Careers, and Toronto subreddits to your sources.")
-
-    # ── SECTION 8: SEGMENT BREAKDOWN ─────────────────────────────────────────
-    segments = Counter(item.get("audience_segment", "unknown") for item in enriched_items)
-
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 8: SIGNALS BY AUDIENCE SEGMENT
-{DIVIDER_HEAVY}
-(Which client segments are most active this week?
-Ask NLM: "What are senior executives worried about this week?")
-""")
-    for segment, count in segments.most_common():
-        seg_display = segment.replace("_", " ").title()
-        seg_items = sorted(
-            [i for i in enriched_items if i.get("audience_segment") == segment],
-            key=lambda x: x.get("relevance_score", 0), reverse=True
-        )
-        sections.append(f"▸ {seg_display} — {count} signals this week")
-        for item in seg_items[:4]:
-            title = item.get("title", "")[:85]
-            score = item.get("relevance_score", 0)
-            theme = (item.get("theme") or "").replace("_", " ").title()
-            sections.append(f"  [{score}/10] [{theme}] {title}")
-        sections.append("")
-
-    # ── SECTION 9: COMPLETE SOURCE INDEX ─────────────────────────────────────
-    sections.append(f"""
-{DIVIDER_HEAVY}
-SECTION 9: COMPLETE SOURCE INDEX
-{DIVIDER_HEAVY}
-(Every signal this week with full metadata — for deep NLM search)
-""")
-    for item in items_by_score:
+    sections.append(f"\n{DIVIDER_HEAVY}\nSECTION 6: CANADA / GTA SIGNALS\n{DIVIDER_HEAVY}\n")
+    for item in canada_items:
         title = item.get("title", "")
-        theme = (item.get("theme") or "").replace("_", " ").title()
+        source = item.get("feed_name") or item.get("subreddit", "")
         score = item.get("relevance_score", 0)
-        source = item.get("feed_name") or (f"r/{item.get('subreddit')}" if item.get("subreddit") else "Unknown")
-        segment = (item.get("audience_segment") or "").replace("_", " ").title()
+        canada_ctx = item.get("canada_context", "")
+        summary = item.get("enrichment", {}).get("summary", "")
         url = item.get("url", "")
-        coaching = " [COACHING FLAG]" if item.get("coaching_flag") else ""
-        canada = " [CANADA]" if item.get("enrichment", {}).get("canada_relevant") else ""
-        sections.append(f"[{score}/10] [{theme}] [{segment}]{coaching}{canada}")
-        sections.append(f"  {title}")
-        sections.append(f"  {source} | {url}")
+        sections.append(f"[{score}/10] {title}")
+        sections.append(f"  Source: {source}")
+        if canada_ctx:
+            sections.append(f"  GTA Context: {canada_ctx}")
+        if summary:
+            sections.append(f"  Summary: {summary}")
+        sections.append(f"  URL: {url}")
         sections.append("")
 
-    sections.append(f"""
-{DIVIDER_HEAVY}
-END OF BRIEF — Week of {week_label}
-B2Have Career Intelligence | Generated {now_str}
-{DIVIDER_HEAVY}""")
-
+    sections.append(f"\n{DIVIDER_HEAVY}\nEND OF BRIEF -- {week_label} | Generated {now_str}\n{DIVIDER_HEAVY}")
     return "\n".join(sections)
 
 
 def format_single_item_full(item, idx):
     """
-    Format a single enriched item with tiered detail based on relevance score:
-      Score 8–10: Full detail — all fields + article body excerpt (500 chars)
-      Score 6–7:  Standard — summary, power quote, coaching questions, hooks (no body)
-      Score 5:    Brief — title, source, score, 2-sentence summary only
-    This keeps the document at a readable ~30–50 pages instead of 300.
+    Format a single enriched item as plain text (used by format_weekly_doc).
+    Tiered detail: score 8+: full, 6-7: standard, 5: brief.
     """
     title = item.get("title", "Untitled")
-    source = item.get("source", "")
     subreddit = item.get("subreddit", "")
     feed_name = item.get("feed_name", "")
     source_display = f"r/{subreddit}" if subreddit else feed_name
     score = item.get("relevance_score", 0)
-    theme = (item.get("theme") or "").replace("_", " ").title()
-    segment = (item.get("audience_segment") or "").replace("_", " ").title()
+    theme = _fmt_theme(item.get("theme"))
+    segment = _fmt_seg(item.get("audience_segment"))
     url = item.get("url", "")
     power_quote = item.get("power_quote", "")
     coaching_flag = item.get("coaching_flag", False)
@@ -389,28 +606,24 @@ def format_single_item_full(item, idx):
     linkedin_hooks = item.get("linkedin_hooks", [])
     content_angles = item.get("content_angles", [])
 
-    urgency_marker = " ⚠ HIGH URGENCY" if urgency == "high" else ""
-    coaching_marker = " 🎯 COACHING FLAG" if coaching_flag else ""
+    urgency_marker = " HIGH URGENCY" if urgency == "high" else ""
+    coaching_marker = " COACHING FLAG" if coaching_flag else ""
 
-    # ── SCORE 5: Brief index entry only ──────────────────────────────────────
     if score <= 5:
         lines = [
-            f"{'─' * 40}",
+            "-" * 40,
             f"SIGNAL #{idx:02d} | Score: {score}/10 | Theme: {theme}",
             f"  {title}",
             f"  {source_display} | {url}",
         ]
         if summary:
-            # Just first sentence for score-5 items
-            first_sentence = summary.split(". ")[0] + "."
-            lines.append(f"  {first_sentence}")
+            lines.append(f"  {summary.split('. ')[0]}.")
         return "\n".join(lines)
 
-    # ── SCORE 6-7: Standard detail (no raw article body) ─────────────────────
     lines = [
-        f"{'─' * 60}",
+        "-" * 60,
         f"SIGNAL #{idx:02d} | Score: {score}/10 | Theme: {theme} | Segment: {segment}",
-        f"{'─' * 60}",
+        "-" * 60,
         f"TITLE: {title}",
         f"Source: {source_display}{urgency_marker}{coaching_marker}",
         f"Sentiment: {sentiment.title() if sentiment else 'N/A'} | Urgency: {urgency.title() if urgency else 'N/A'}",
@@ -418,74 +631,50 @@ def format_single_item_full(item, idx):
     ]
 
     if summary:
-        lines.append(f"\nSUMMARY:")
-        lines.append(summary)
-
+        lines.append(f"\nSUMMARY:\n{summary}")
     if power_quote:
-        lines.append(f'\nPOWER QUOTE:')
-        lines.append(f'"{power_quote}"')
-
+        lines.append(f'\nPOWER QUOTE:\n"{power_quote}"')
     if coaching_flag and coaching_reason:
-        lines.append(f"\nCOACHING OPPORTUNITY:")
-        lines.append(f"  {coaching_reason}")
-
+        lines.append(f"\nCOACHING OPPORTUNITY:\n  {coaching_reason}")
     if coaching_qs:
-        lines.append(f"\nCOACHING QUESTIONS:")
+        lines.append("\nCOACHING QUESTIONS:")
         for q in coaching_qs:
-            lines.append(f"  • {q}")
-
+            lines.append(f"  - {q}")
     if linkedin_hooks:
-        lines.append(f"\nLINKEDIN HOOKS:")
+        lines.append("\nLINKEDIN HOOKS:")
         for hook in linkedin_hooks:
-            lines.append(f"  → {hook}")
+            lines.append(f"  -> {hook}")
 
-    # Reddit comments for mid-range items
     top_comments = item.get("top_comments", [])
     if top_comments:
-        lines.append(f"\nTOP COMMUNITY RESPONSES:")
+        lines.append("\nTOP COMMUNITY RESPONSES:")
         for i, c in enumerate(top_comments[:3]):
-            upvotes = c.get("score", 0)
-            body_text = c.get("body", "")[:200]
-            lines.append(f"  Comment {i+1} ({upvotes} upvotes): {body_text}")
+            lines.append(f"  Comment {i+1} ({c.get('score', 0)} upvotes): {c.get('body', '')[:200]}")
 
-    # ── SCORE 8+: Full detail with all fields + article body excerpt ──────────
     if score >= 8:
         if key_stats:
-            lines.append(f"\nKEY STATISTICS:")
+            lines.append("\nKEY STATISTICS:")
             for stat in key_stats:
-                lines.append(f"  • {stat}")
-
+                lines.append(f"  - {stat}")
         if canada_ctx:
-            lines.append(f"\nGTA/CANADA RELEVANCE:")
-            lines.append(f"  {canada_ctx}")
-
+            lines.append(f"\nGTA/CANADA RELEVANCE:\n  {canada_ctx}")
         if client_phrases:
-            lines.append(f"\nWHAT CLIENTS SAY (intake language):")
+            lines.append("\nWHAT CLIENTS SAY:")
             for phrase in client_phrases:
-                lines.append(f'  • "{phrase}"')
-
+                lines.append(f'  - "{phrase}"')
         if content_angles:
-            lines.append(f"\nCONTENT ANGLES:")
+            lines.append("\nCONTENT ANGLES:")
             for angle in content_angles:
-                lines.append(f"  → {angle}")
-
-        # Article body — capped at 500 chars for score 8+ only
+                lines.append(f"  -> {angle}")
         body = item.get("body", "")
         if body and len(body) > 100:
-            lines.append(f"\nFULL POST TEXT (excerpt):")
-            lines.append(body[:500])
-
+            lines.append(f"\nFULL POST TEXT (excerpt):\n{body[:500]}")
         full_text = item.get("full_text", "")
         if full_text and len(full_text) > 100:
-            lines.append(f"\nARTICLE BODY (excerpt):")
-            lines.append(full_text[:500])
-
-        # More comments for high-score items
+            lines.append(f"\nARTICLE BODY (excerpt):\n{full_text[:500]}")
         if top_comments:
-            lines.append(f"\nTOP COMMUNITY RESPONSES:")
+            lines.append("\nTOP COMMUNITY RESPONSES (extended):")
             for i, c in enumerate(top_comments[:5]):
-                upvotes = c.get("score", 0)
-                body_text = c.get("body", "")[:300]
-                lines.append(f"  Comment {i+1} ({upvotes} upvotes): {body_text}")
+                lines.append(f"  Comment {i+1} ({c.get('score', 0)} upvotes): {c.get('body', '')[:300]}")
 
     return "\n".join(lines)
