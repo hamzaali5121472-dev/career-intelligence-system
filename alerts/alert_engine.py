@@ -92,13 +92,13 @@ def send_email_alert(subject, plain_body, html_body=None, priority="normal"):
         return False
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"[B2Have Intel] {subject}"
+    if priority == "high":
+        msg["Subject"] = f"🚨 [B2Have Intel] {subject}"
+        msg["X-Priority"] = "1"
+    else:
+        msg["Subject"] = f"[B2Have Intel] {subject}"
     msg["From"] = from_email
     msg["To"] = to_email
-
-    if priority == "high":
-        msg["X-Priority"] = "1"
-        msg["Subject"] = f"🚨 [B2Have Intel] {subject}"
 
     msg.attach(MIMEText(plain_body, "plain"))
 
