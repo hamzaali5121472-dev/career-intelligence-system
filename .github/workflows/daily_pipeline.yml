@@ -1,0 +1,58 @@
+name: Daily Career Intelligence Pipeline
+
+on:
+  schedule:
+    # 8:00 AM EST = 13:00 UTC  (runs every day)
+    - cron: '0 13 * * *'
+  workflow_dispatch:   # Allow manual trigger from GitHub UI
+
+jobs:
+  daily-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/enriched data/logs config
+
+      - name: Write Google OAuth2 token
+        env:
+          GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+        run: |
+          echo "$GOOGLE_TOKEN_JSON" > config/token.json
+
+      - name: Run full daily pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_APP_PASSWORD: ${{ secrets.ALERT_EMAIL_APP_PASSWORD }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USER_AGENT: ${{ secrets.REDDIT_USER_AGENT }}
+          REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+          REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+          MIN_RELEVANCE_SCORE: 6
+          PYTHONUTF8: 1
+        run: python main.py
+
+      - name: Upload enriched data artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daily-enriched-${{ github.run_id }}
+          path: data/enriched/enriched_*.json
+          retention-days: 8

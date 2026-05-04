@@ -14,10 +14,14 @@ import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import socket
 import feedparser
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+
+# Global socket timeout — no single feed can block longer than this
+socket.setdefaulttimeout(20)
 
 load_dotenv()
 
@@ -95,7 +99,7 @@ def fetch_full_article_text(url, timeout=15):
     try:
         response = requests.get(url, headers=HEADERS, timeout=timeout)
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, "lxml")
+        soup = BeautifulSoup(response.text, "html.parser")
 
         # Remove noise elements
         for tag in soup(["nav", "header", "footer", "aside", "script",
@@ -118,12 +122,12 @@ def fetch_full_article_text(url, timeout=15):
             if element:
                 text = element.get_text(separator="\n", strip=True)
                 if len(text) > 200:
-                    return text[:5000]  # Cap at 5000 chars — enough context for NLM
+                    return text[:8000]  # Cap at 8000 chars for deep enrichment
 
         # Fallback: grab all paragraph text
         paragraphs = soup.find_all("p")
         text = "\n".join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 50)
-        return text[:5000] if len(text) > 200 else None
+        return text[:8000] if len(text) > 200 else None
 
     except Exception as e:
         log.debug(f"Could not fetch full text from {url}: {e}")
@@ -146,13 +150,26 @@ def collect_feed(feed_config, keyword_set, max_age_days=7, fetch_full=False):
     cutoff = datetime.now(timezone.utc) - max_age
 
     try:
-        feed = feedparser.parse(feed_url)
+        # Try fetching with requests first (allows custom headers), fallback to feedparser direct
+        try:
+            resp = requests.get(feed_url, headers=HEADERS, timeout=(8, 15))
+            feed = feedparser.parse(resp.content)
+        except Exception:
+            try:
+                feed = feedparser.parse(feed_url)
+            except Exception as e:
+                log.warning(f"  ⚠ {feed_name}: Could not fetch feed — {e}")
+                return collected, "failed", str(e)
 
         if feed.bozo and not feed.entries:
-            log.warning(f"  ⚠ {feed_name}: Feed parse error — {feed.bozo_exception}")
+            log.warning(f"  ⚠ {feed_name}: Feed parse error (no entries) — {feed.bozo_exception}")
             return collected, "failed", str(feed.bozo_exception)
+        elif feed.bozo and feed.entries:
+            # Bozo but still has entries — common with charset warnings, proceed
+            log.debug(f"  {feed_name}: Minor parse warning (still has entries) — {feed.bozo_exception}")
 
-        for entry in feed.entries[:20]:  # Max 20 articles per feed
+        max_per_feed = feed_config.get("max_articles", 30)
+        for entry in feed.entries[:max_per_feed]:  # Max 30 articles per feed
             # Parse date
             pub_date = parse_entry_date(entry)
 
@@ -168,14 +185,22 @@ def collect_feed(feed_config, keyword_set, max_age_days=7, fetch_full=False):
 
             # Clean summary of HTML tags
             if summary:
-                summary_clean = BeautifulSoup(summary, "lxml").get_text(strip=True)
+                summary_clean = BeautifulSoup(summary, "html.parser").get_text(strip=True)
             else:
                 summary_clean = ""
 
             # Combine title + summary for keyword matching
+            # For high-priority feeds (thought leadership, job market data), be more permissive
             full_text_preview = f"{title} {summary_clean}"
+            feed_category = feed_config.get("category", "")
+            high_priority = feed_config.get("priority", "") == "high"
+
             if not matches_keywords(full_text_preview, keyword_set):
-                continue
+                # Still include high-priority feed items about work/jobs even without exact keyword match
+                if not (high_priority and any(kw in full_text_preview.lower()
+                        for kw in ["work", "job", "career", "employee", "worker", "hire",
+                                   "salary", "boss", "office", "manager", "remote"])):
+                    continue
 
             # Dedup
             article_hash = content_hash(title + link)

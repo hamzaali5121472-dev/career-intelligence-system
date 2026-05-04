@@ -1,44 +1,9 @@
-name: RSS Feeds Collection
-
+# DISABLED — replaced by daily_pipeline.yml
+name: RSS Feeds (Disabled)
 on:
-  schedule:
-    # 7:00 AM EST = 12:00 UTC  AND  7:00 PM EST = 00:00 UTC (twice daily)
-    - cron: '0 12 * * *'
-    - cron: '0 0 * * *'
   workflow_dispatch:
-
 jobs:
-  collect-rss:
+  disabled:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
-        continue-on-error: true  # Optional for RSS-only runs
-
-      - name: Create data directories
-        run: mkdir -p data/raw data/enriched data/logs
-
-      - name: Run RSS collector
-        run: python -m collectors.rss_collector
-
-      - name: Upload raw data artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: rss-raw-${{ github.run_id }}
-          path: data/raw/rss_*.json
-          retention-days: 7
+      - run: echo "Disabled. Use daily_pipeline.yml instead."

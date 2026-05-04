@@ -1,17 +1,20 @@
 """
 Main Orchestrator — B2Have Career Intelligence System
-Runs the full pipeline in sequence:
-  1. Collect (Reddit + RSS + Job Bank)
+Runs the full DAILY pipeline in sequence:
+  1. Collect (Reddit + RSS)
   2. Enrich (Claude Haiku AI tagging)
-  3. Alert check (6 trigger types)
-  4. Write to Google Drive (weekly doc)
+  3. Alert check (email alert if coaching opportunities found)
+  4. Write to Google Drive (daily doc — one per day)
+
+Sunday evening a separate weekly_rollup.py synthesizes the week's 7 daily docs.
 
 Usage:
-  python main.py                    # Full pipeline run
+  python main.py                    # Full daily pipeline run
   python main.py --collect-only     # Just collect raw data
   python main.py --enrich-only      # Just enrich existing raw data
   python main.py --write-only       # Just write enriched data to Drive
   python main.py --test             # Test all connections, don't process
+  python outputs/weekly_rollup.py   # Run weekly synthesis (Sundays)
 """
 
 import os
@@ -139,24 +142,23 @@ def run_pipeline(args):
                 enriched_items = enriched_data.get("items", [])
 
                 if enriched_items:
-                    from outputs.weekly_rotator import get_current_week_info, register_week_doc
-                    from outputs.doc_formatter import format_weekly_doc
-                    from outputs.drive_writer import write_weekly_intelligence
+                    from outputs.daily_tracker import get_today_info, register_daily_doc
+                    from outputs.doc_formatter import format_daily_doc
+                    from outputs.drive_writer import write_daily_intelligence
 
-                    week_info = get_current_week_info()
-                    week_label = week_info["week_label"]
-                    week_start = week_info["week_start"]
-                    week_end = week_info["week_end"]
+                    today_info = get_today_info()
+                    day_label = today_info["day_label"]        # e.g. "2026-05-04"
+                    day_display = today_info["day_display"]    # e.g. "Sunday, May 04"
 
-                    formatted_content = format_weekly_doc(
-                        enriched_items, week_label, week_start, week_end
+                    formatted_content = format_daily_doc(
+                        enriched_items, day_label, day_display
                     )
 
-                    doc_id, doc_url = write_weekly_intelligence(
-                        enriched_items, formatted_content, week_label
+                    doc_id, doc_url = write_daily_intelligence(
+                        enriched_items, formatted_content, day_label
                     )
 
-                    register_week_doc(doc_id, doc_url, week_label)
+                    register_daily_doc(doc_id, doc_url, day_label)
 
                     log.info(f"  ✓ Written to Google Drive")
                     log.info(f"  📄 Doc URL: {doc_url}")

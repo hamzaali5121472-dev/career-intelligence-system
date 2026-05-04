@@ -1,0 +1,53 @@
+name: Weekly Intelligence Rollup (Sundays)
+
+on:
+  schedule:
+    # 6:00 PM EST Sunday = 23:00 UTC Sunday
+    # Runs after the day's daily pipeline has completed
+    - cron: '0 23 * * 0'
+  workflow_dispatch:   # Allow manual trigger
+
+jobs:
+  weekly-rollup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create data directories
+        run: mkdir -p data/raw data/enriched data/logs config
+
+      - name: Download this week's enriched data artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: daily-enriched-*
+          path: data/enriched/
+          merge-multiple: true
+        continue-on-error: true  # OK if some days had no data
+
+      - name: Write Google OAuth2 token
+        env:
+          GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+        run: |
+          echo "$GOOGLE_TOKEN_JSON" > config/token.json
+
+      - name: Run weekly rollup synthesis
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_APP_PASSWORD: ${{ secrets.ALERT_EMAIL_APP_PASSWORD }}
+          PYTHONUTF8: 1
+        run: python outputs/weekly_rollup.py

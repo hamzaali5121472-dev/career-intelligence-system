@@ -1,44 +1,9 @@
 {
   "feeds": [
     {
-      "name": "Harvard Business Review — Careers",
-      "url": "https://hbr.org/topic/subject/careers.rss",
-      "category": "thought_leadership",
-      "priority": "high",
-      "fetch_full_text": true
-    },
-    {
       "name": "Fast Company — Work Life",
       "url": "https://www.fastcompany.com/work-life/rss",
       "category": "trends",
-      "priority": "high",
-      "fetch_full_text": true
-    },
-    {
-      "name": "Globe and Mail — Careers",
-      "url": "https://www.theglobeandmail.com/rss/topic/careers/",
-      "category": "canada_market",
-      "priority": "high",
-      "fetch_full_text": true
-    },
-    {
-      "name": "SHRM — All Articles",
-      "url": "https://www.shrm.org/rss/pages/rss.aspx",
-      "category": "hr_professional",
-      "priority": "medium",
-      "fetch_full_text": false
-    },
-    {
-      "name": "Forbes — Careers",
-      "url": "https://www.forbes.com/careers/feed/",
-      "category": "mainstream",
-      "priority": "medium",
-      "fetch_full_text": false
-    },
-    {
-      "name": "LinkedIn Talent Blog",
-      "url": "https://www.linkedin.com/blog/talent-solutions/feed",
-      "category": "recruiter_perspective",
       "priority": "high",
       "fetch_full_text": true
     },
@@ -50,10 +15,17 @@
       "fetch_full_text": true
     },
     {
-      "name": "Workopolis Blog",
-      "url": "https://careers.workopolis.com/advice/feed/",
-      "category": "canada_market",
-      "priority": "medium",
+      "name": "BBC Worklife",
+      "url": "https://feeds.bbci.co.uk/news/business/rss.xml",
+      "category": "trends",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "The Guardian — Work & Careers",
+      "url": "https://www.theguardian.com/money/work-and-careers/rss",
+      "category": "mainstream",
+      "priority": "high",
       "fetch_full_text": true
     },
     {
@@ -61,19 +33,40 @@
       "url": "https://sloanreview.mit.edu/topic/work-culture/feed/",
       "category": "research",
       "priority": "medium",
-      "fetch_full_text": false
-    },
-    {
-      "name": "Future Forum Blog",
-      "url": "https://futureforum.com/feed/",
-      "category": "future_of_work",
-      "priority": "medium",
       "fetch_full_text": true
     },
     {
-      "name": "The Muse — Advice",
-      "url": "https://www.themuse.com/rss/advice",
-      "category": "job_seeker_advice",
+      "name": "Remote.co Blog",
+      "url": "https://remote.co/feed/",
+      "category": "remote_future_of_work",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Globe and Mail — Careers",
+      "url": "https://www.theglobeandmail.com/rss/topic/careers/",
+      "category": "canada_market",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Canadian HR Reporter",
+      "url": "https://www.hrreporter.com/rss",
+      "category": "canada_market",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Forbes — Leadership",
+      "url": "https://www.forbes.com/leadership/feed/",
+      "category": "mainstream",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Inc. — Work Life",
+      "url": "https://www.inc.com/rss",
+      "category": "mainstream",
       "priority": "medium",
       "fetch_full_text": false
     },
@@ -82,20 +75,76 @@
       "url": "https://careersidekick.com/feed/",
       "category": "job_seeker_advice",
       "priority": "medium",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Ask A Manager",
+      "url": "https://www.askamanager.org/feed",
+      "category": "job_seeker_advice",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "HR Bartender",
+      "url": "https://www.hrbartender.com/feed",
+      "category": "hr_professional",
+      "priority": "medium",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Workology",
+      "url": "https://workology.com/feed/",
+      "category": "hr_professional",
+      "priority": "medium",
       "fetch_full_text": false
     },
     {
-      "name": "Glassdoor Economic Research",
-      "url": "https://www.glassdoor.com/research/feed/",
+      "name": "Glassdoor Blog",
+      "url": "https://www.glassdoor.com/blog/feed/",
       "category": "job_market_data",
-      "priority": "high",
+      "priority": "medium",
       "fetch_full_text": true
+    },
+    {
+      "name": "Jobscan Blog",
+      "url": "https://www.jobscan.co/blog/feed/",
+      "category": "job_seeker_advice",
+      "priority": "medium",
+      "fetch_full_text": true
+    },
+    {
+      "name": "LinkedIn Talent Blog (RSS)",
+      "url": "https://business.linkedin.com/talent-solutions/blog/rss",
+      "category": "recruiter_perspective",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Undercover Recruiter",
+      "url": "https://theundercoverrecruiter.com/feed/",
+      "category": "recruiter_perspective",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "NPR — Life Kit",
+      "url": "https://feeds.npr.org/510338/podcast.xml",
+      "category": "mainstream",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Psychology Today — Career Blog",
+      "url": "https://www.psychologytoday.com/us/blog/in-it-together/feed",
+      "category": "mental_health_career",
+      "priority": "medium",
+      "fetch_full_text": false
     }
   ],
   "fetch_settings": {
     "request_timeout_seconds": 15,
-    "max_articles_per_feed": 20,
+    "max_articles_per_feed": 30,
     "max_article_age_days": 7,
-    "user_agent": "B2Have Career Intelligence RSS Reader/1.0"
+    "user_agent": "B2Have Career Intelligence RSS Reader/1.0 (career coaching research)"
   }
 }

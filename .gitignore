@@ -1,6 +1,11 @@
-# NEVER commit these — contains API keys
+# NEVER commit these — contains API keys and OAuth tokens
 .env
 config/google_service_account.json
+config/token.json
+config/client_secrets.json
+
+# Temporary patch scripts (session scaffolding — not part of the project)
+apply_patch*.py
 
 # Raw data — too large for git, stays local
 data/raw/

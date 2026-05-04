@@ -48,8 +48,9 @@ DATA_ENRICHED = ROOT / "data" / "enriched"
 DATA_ENRICHED.mkdir(parents=True, exist_ok=True)
 
 # ── Prompt Template ───────────────────────────────────────────────────────────
-ENRICHMENT_PROMPT = """You are an expert career coaching analyst for B2Have, a Toronto-based career coaching company.
-Analyze the following post/article and return a JSON object with these exact fields.
+ENRICHMENT_PROMPT = """You are a senior career coaching analyst at B2Have, a Toronto-based career coaching firm serving the GTA/Ontario market. Your clients are mid-career professionals, senior executives, and new graduates navigating job searches, career pivots, and workplace challenges.
+
+Analyze the following post/article deeply and return a rich JSON object. This analysis will be read by a career coach who needs to understand: what real people are struggling with, exact language clients use, and what content/services to create.
 
 CAREER THEMES (pick the SINGLE best match):
 {themes_list}
@@ -66,19 +67,24 @@ Content: {content}
 Source: {source} | Engagement: {engagement}
 ---
 
-Return ONLY a valid JSON object, no explanation, no markdown:
+Return ONLY a valid JSON object, no explanation, no markdown. Be specific, detailed, and thorough in every field:
 {{
   "theme": "one theme from the list above",
-  "relevance_score": <integer 0-10, where 10=directly about career coaching pain, 0=not relevant>,
-  "power_quote": "<the single most compelling, emotionally resonant sentence from the content — exact words, max 150 chars>",
+  "relevance_score": <integer 0-10, where 10=directly about career coaching pain in GTA/Canada, 0=not relevant at all>,
+  "power_quote": "<the single most emotionally resonant, shareable sentence from the content — exact words if possible, max 180 chars>",
   "audience_segment": "one segment from the list above",
-  "coaching_flag": <true if this person clearly needs/wants professional career coaching help, false otherwise>,
-  "coaching_reason": "<1 sentence: why this person would benefit from coaching, or empty string if not applicable>",
-  "sentiment": "frustrated|hopeful|angry|confused|desperate|neutral|positive",
+  "coaching_flag": <true if this reveals a real pain point where professional career coaching would genuinely help, false otherwise>,
+  "coaching_reason": "<1-2 sentences: the specific career challenge this person faces and what a B2Have coach would help them do>",
+  "sentiment": "frustrated|hopeful|angry|confused|desperate|neutral|positive|anxious",
   "urgency": "high|medium|low",
-  "canada_relevant": <true if content is specifically relevant to Canadian/GTA job seekers, false otherwise>,
-  "content_angle": "<1-sentence description of what content this insight could inspire for B2Have>",
-  "summary": "<2-sentence plain English summary of what this post is about>"
+  "canada_relevant": <true if specifically relevant to Canadian/GTA/Ontario job seekers or employers, false if US-only>,
+  "canada_context": "<1 sentence on how this applies specifically to the GTA/Ontario market, or empty string if not relevant>",
+  "summary": "<4-5 sentence detailed summary: what happened, the key data/findings, who is affected, what it means for job seekers>",
+  "key_statistics": ["<stat 1 with number>", "<stat 2 with number>", "<stat 3 with number>"],
+  "what_clients_say": ["<exact phrase a client would use when describing this pain>", "<another phrase>", "<another phrase>"],
+  "coaching_questions": ["<question a coach would ask to explore this with a client>", "<another question>", "<another question>"],
+  "linkedin_hooks": ["<compelling opening line for a LinkedIn post on this topic>", "<alternative hook>"],
+  "content_angles": ["<specific content idea for B2Have (blog post, video, workshop)>", "<another angle>", "<another angle>"]
 }}"""
 
 THEME_LIST_TEXT = "\n".join(
@@ -112,8 +118,11 @@ def prepare_content_for_enrichment(item):
 
     elif source == "rss":
         title = item.get("title", "")
+        # Use full_text if available, fall back to summary.
+        # Cap at 2500 chars — enough for rich analysis without risking
+        # Haiku truncating the JSON output at 1500 max_tokens.
         body = item.get("full_text") or item.get("summary", "")
-        return title, body[:2000]
+        return title, body[:2500]
 
     else:
         title = item.get("title", "") or item.get("name", "")
@@ -133,57 +142,99 @@ def format_engagement(item):
     return " | ".join(parts) if parts else "N/A"
 
 
+def _call_haiku(client, prompt):
+    """
+    Call Claude Haiku and return (response_text, stop_reason).
+    Raises exceptions on API failures.
+    """
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1500,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    response_text = message.content[0].text.strip()
+    stop_reason = message.stop_reason  # "end_turn" or "max_tokens"
+    return response_text, stop_reason
+
+
+def _parse_json_response(response_text):
+    """Strip markdown fencing and parse JSON. Returns dict."""
+    if response_text.startswith("```"):
+        response_text = response_text.split("```")[1]
+        if response_text.startswith("json"):
+            response_text = response_text[4:]
+    return json.loads(response_text.strip())
+
+
 def enrich_item(client, item):
     """
     Send one item to Claude Haiku for enrichment.
     Returns the enrichment dict, or None on failure.
+
+    If the response is truncated (stop_reason = 'max_tokens') or the JSON
+    fails to parse, automatically retries with a much shorter content snippet
+    (title + 500 chars) so the output JSON fits within the token budget.
     """
     title, content = prepare_content_for_enrichment(item)
 
     if not content and not title:
         return None
 
-    prompt = ENRICHMENT_PROMPT.format(
-        themes_list=THEME_LIST_TEXT,
-        segments_list=SEGMENT_LIST_TEXT,
-        title=title,
-        content=content,
-        source=item.get("source", "unknown"),
-        engagement=format_engagement(item)
-    )
-
-    try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}]
+    def _build_prompt(content_text):
+        return ENRICHMENT_PROMPT.format(
+            themes_list=THEME_LIST_TEXT,
+            segments_list=SEGMENT_LIST_TEXT,
+            title=title,
+            content=content_text,
+            source=item.get("source", "unknown"),
+            engagement=format_engagement(item)
         )
 
-        response_text = message.content[0].text.strip()
+    # ── First attempt ─────────────────────────────────────────────────────────
+    try:
+        response_text, stop_reason = _call_haiku(client, _build_prompt(content))
 
-        # Parse JSON — handle any markdown wrapping
-        if response_text.startswith("```"):
-            response_text = response_text.split("```")[1]
-            if response_text.startswith("json"):
-                response_text = response_text[4:]
+        if stop_reason == "max_tokens":
+            # Output was cut off — truncated JSON will fail to parse.
+            # Log and fall through to retry with less input.
+            log.warning(
+                f"Haiku hit max_tokens for '{title[:50]}' — retrying with shorter content"
+            )
+            raise json.JSONDecodeError("truncated", "", 0)
 
-        enrichment = json.loads(response_text)
+        enrichment = _parse_json_response(response_text)
 
-        # Validate required fields
-        required = ["theme", "relevance_score", "power_quote", "audience_segment",
-                    "coaching_flag", "summary"]
-        for field in required:
-            if field not in enrichment:
-                enrichment[field] = None
+    except json.JSONDecodeError:
+        # ── Retry with just title + first 500 chars ────────────────────────
+        log.info(f"  Retry (shorter content) for: {title[:60]}")
+        try:
+            short_content = content[:500]
+            response_text, stop_reason = _call_haiku(client, _build_prompt(short_content))
+            enrichment = _parse_json_response(response_text)
+        except json.JSONDecodeError as e2:
+            log.warning(f"JSON parse error (retry) for item {item.get('id', '?')}: {e2}")
+            return None
+        except Exception as e2:
+            log.error(f"Enrichment API error (retry) for item {item.get('id', '?')}: {e2}")
+            return None
 
-        return enrichment
-
-    except json.JSONDecodeError as e:
-        log.warning(f"JSON parse error for item {item.get('id', '?')}: {e}")
-        return None
     except Exception as e:
         log.error(f"Enrichment API error for item {item.get('id', '?')}: {e}")
         return None
+
+    # ── Validate and fill defaults ────────────────────────────────────────────
+    required = ["theme", "relevance_score", "power_quote", "audience_segment",
+                "coaching_flag", "summary"]
+    for field in required:
+        if field not in enrichment:
+            enrichment[field] = None
+    # Default empty lists for array fields
+    for list_field in ["key_statistics", "what_clients_say", "coaching_questions",
+                       "linkedin_hooks", "content_angles"]:
+        if list_field not in enrichment or not isinstance(enrichment[list_field], list):
+            enrichment[list_field] = []
+
+    return enrichment
 
 
 def load_raw_files(since_hours=25):
@@ -263,7 +314,7 @@ def run_enrichment(since_hours=25):
             log.debug(f"  Skipped (score {score} < {min_score}): {item.get('title', '')[:50]}")
             continue
 
-        # Merge enrichment into item
+        # Merge enrichment into item — surface key fields for easy access
         enriched_item = {
             **item,
             "enrichment": enrichment,
@@ -272,7 +323,14 @@ def run_enrichment(since_hours=25):
             "theme": enrichment.get("theme"),
             "audience_segment": enrichment.get("audience_segment"),
             "coaching_flag": enrichment.get("coaching_flag", False),
-            "power_quote": enrichment.get("power_quote")
+            "power_quote": enrichment.get("power_quote"),
+            # Surface new deep-analysis fields at top level for doc formatter
+            "key_statistics": enrichment.get("key_statistics", []),
+            "what_clients_say": enrichment.get("what_clients_say", []),
+            "coaching_questions": enrichment.get("coaching_questions", []),
+            "linkedin_hooks": enrichment.get("linkedin_hooks", []),
+            "content_angles": enrichment.get("content_angles", []),
+            "canada_context": enrichment.get("canada_context", "")
         }
 
         enriched_items.append(enriched_item)
