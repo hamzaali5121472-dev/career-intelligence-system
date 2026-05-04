@@ -1,7 +1,7 @@
 {
   "feeds": [
     {
-      "name": "Fast Company — Work Life",
+      "name": "Fast Company - Work Life",
       "url": "https://www.fastcompany.com/work-life/rss",
       "category": "trends",
       "priority": "high",
@@ -22,29 +22,29 @@
       "fetch_full_text": true
     },
     {
-      "name": "The Guardian — Work & Careers",
+      "name": "The Guardian - Work and Careers",
       "url": "https://www.theguardian.com/money/work-and-careers/rss",
       "category": "mainstream",
       "priority": "high",
       "fetch_full_text": true
     },
     {
-      "name": "MIT Sloan Management Review — Work",
+      "name": "MIT Sloan Management Review - Work",
       "url": "https://sloanreview.mit.edu/topic/work-culture/feed/",
       "category": "research",
       "priority": "medium",
       "fetch_full_text": true
     },
     {
-      "name": "Remote.co Blog",
-      "url": "https://remote.co/feed/",
-      "category": "remote_future_of_work",
+      "name": "HR Morning",
+      "url": "https://www.hrmorning.com/feed/",
+      "category": "hr_professional",
       "priority": "medium",
-      "fetch_full_text": false
+      "fetch_full_text": true
     },
     {
-      "name": "Globe and Mail — Careers",
-      "url": "https://www.theglobeandmail.com/rss/topic/careers/",
+      "name": "CBC News - Business",
+      "url": "https://www.cbc.ca/cmlink/rss-business",
       "category": "canada_market",
       "priority": "high",
       "fetch_full_text": true
@@ -57,14 +57,14 @@
       "fetch_full_text": true
     },
     {
-      "name": "Forbes — Leadership",
-      "url": "https://www.forbes.com/leadership/feed/",
+      "name": "Harvard Business Review",
+      "url": "http://feeds.hbr.org/harvardbusiness",
       "category": "mainstream",
-      "priority": "medium",
-      "fetch_full_text": false
+      "priority": "high",
+      "fetch_full_text": true
     },
     {
-      "name": "Inc. — Work Life",
+      "name": "Inc. - Work Life",
       "url": "https://www.inc.com/rss",
       "category": "mainstream",
       "priority": "medium",
@@ -92,11 +92,11 @@
       "fetch_full_text": true
     },
     {
-      "name": "Workology",
-      "url": "https://workology.com/feed/",
-      "category": "hr_professional",
-      "priority": "medium",
-      "fetch_full_text": false
+      "name": "Benefits Canada",
+      "url": "https://www.benefitscanada.com/feed/",
+      "category": "canada_market",
+      "priority": "high",
+      "fetch_full_text": true
     },
     {
       "name": "Glassdoor Blog",
@@ -113,9 +113,16 @@
       "fetch_full_text": true
     },
     {
-      "name": "LinkedIn Talent Blog (RSS)",
-      "url": "https://business.linkedin.com/talent-solutions/blog/rss",
+      "name": "Talent Canada",
+      "url": "https://talentcanada.ca/feed/",
       "category": "recruiter_perspective",
+      "priority": "high",
+      "fetch_full_text": true
+    },
+    {
+      "name": "Financial Post",
+      "url": "https://financialpost.com/feed/",
+      "category": "canada_market",
       "priority": "medium",
       "fetch_full_text": false
     },
@@ -127,16 +134,23 @@
       "fetch_full_text": false
     },
     {
-      "name": "NPR — Life Kit",
+      "name": "NPR - Life Kit",
       "url": "https://feeds.npr.org/510338/podcast.xml",
       "category": "mainstream",
       "priority": "medium",
       "fetch_full_text": false
     },
     {
-      "name": "Psychology Today — Career Blog",
+      "name": "Psychology Today - Career",
       "url": "https://www.psychologytoday.com/us/blog/in-it-together/feed",
       "category": "mental_health_career",
+      "priority": "medium",
+      "fetch_full_text": false
+    },
+    {
+      "name": "Personnel Today",
+      "url": "https://www.personneltoday.com/feed/",
+      "category": "hr_professional",
       "priority": "medium",
       "fetch_full_text": false
     }
@@ -144,7 +158,7 @@
   "fetch_settings": {
     "request_timeout_seconds": 15,
     "max_articles_per_feed": 30,
-    "max_article_age_days": 7,
+    "max_article_age_days": 2,
     "user_agent": "B2Have Career Intelligence RSS Reader/1.0 (career coaching research)"
   }
 }
