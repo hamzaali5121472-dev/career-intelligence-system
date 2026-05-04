@@ -232,7 +232,7 @@ def run_collection():
     reddit = praw.Reddit(
         client_id=os.getenv("REDDIT_CLIENT_ID"),
         client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
-        user_agent=os.getenv("REDDIT_USER_AGENT", "b2have_career_intel/1.0"),
+        user_agent=os.getenv("REDDIT_USER_AGENT", "b2have_career_intel/1.0").strip(),
         username=os.getenv("REDDIT_USERNAME"),
         password=os.getenv("REDDIT_PASSWORD")
     )
